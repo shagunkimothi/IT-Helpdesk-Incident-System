@@ -4,17 +4,18 @@ An MVP for recording, assigning, tracking, and resolving IT support incidents.
 It demonstrates relational database design, REST APIs, validation, lifecycle
 business rules, SLA calculation, persistence, and basic automated testing.
 
-> **Implementation note:** Priority is selected directly from `low`, `medium`,
-> `high`, and `critical`. Impact and urgency fields are not implemented.
-> Incident events persist creation, update, status-change, and comment actions,
-> but do not yet record an actor or complete before/after snapshots.
+> **Implementation note:** Priority is calculated on the backend from `impact`
+> and `urgency`, each of which can be `low`, `medium`, or `high`. Incident
+> events persist creation, update, status-change, and comment actions, but do
+> not yet record an actor or complete before/after snapshots.
 
 ## Project Overview
 
 The application gives a helpdesk team one place to:
 
 - Create, view, update, filter, and delete incidents.
-- Record requesters, categories, priorities, and optional assignees.
+- Record requesters, categories, impact, urgency, calculated priority, and
+  optional assignees.
 - Move incidents through controlled lifecycle states.
 - Add and retrieve comments.
 - Calculate and store an SLA deadline.
@@ -58,11 +59,12 @@ transitions.
 ### Not implemented
 
 - Authentication or authorization.
-- Impact/urgency priority matrix.
+- Impact/urgency priority calculation is implemented; a richer configurable
+  matrix is not.
 - `"At Risk"` SLA state.
 - Pagination or full-text search.
 - Notifications, attachments, or background jobs.
-- Production deployment and database migrations.
+- Production deployment and formal database migrations.
 - Optimistic locking for concurrent edits.
 
 ## Tech Stack
@@ -183,7 +185,7 @@ classify many incidents.
 
 - `id` primary key
 - `title`, `description`
-- `status`, `priority`
+- `status`, `impact`, `urgency`, and calculated `priority`
 - `requester_id` foreign key to `users.id`
 - nullable `assignee_id` foreign key to `users.id`
 - `category_id` foreign key to `categories.id`
@@ -209,12 +211,24 @@ incident creation, updates, status changes, and comment creation.
 
 ### Priority and SLA
 
-Impact and urgency are not currently collected. The client supplies a
-validated priority enum directly:
+The client supplies validated `impact` and `urgency` values. The backend
+calculates priority and does not trust a priority sent by the UI:
 
 ```text
-priority -> SLA duration -> SLA deadline -> Overdue / Not overdue
+Impact + Urgency -> Priority -> SLA duration -> SLA deadline
+                                                   -> Overdue / Not overdue
 ```
+
+The rule is:
+
+```text
+High + High       -> Critical
+High impact OR high urgency -> High
+Medium or Medium  -> Medium
+Low + Low         -> Low
+```
+
+The exact nine combinations are covered by tests.
 
 ```text
 sla_due_at = created_at + SLA duration
@@ -339,7 +353,7 @@ in:
 
 ## Future Improvements
 
-- Impact and urgency fields with a priority matrix.
+- A richer configurable impact/urgency priority matrix.
 - Richer event audit metadata such as actor and before/after values.
 - Authentication and role-based authorization.
 - PostgreSQL, migrations, pagination, and production deployment.

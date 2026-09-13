@@ -2,6 +2,7 @@ from collections.abc import Generator
 from pathlib import Path
 
 from sqlalchemy import create_engine
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 DATABASE_PATH = Path(__file__).resolve().parents[2] / "data" / "helpdesk.db"
@@ -31,7 +32,17 @@ def init_db() -> None:
     from . import models
 
     Base.metadata.create_all(bind=engine)
+    migrate_incident_priority_inputs()
     seed_data()
+
+
+def migrate_incident_priority_inputs() -> None:
+    columns = {column["name"] for column in inspect(engine).get_columns("incidents")}
+    with engine.begin() as connection:
+        if "impact" not in columns:
+            connection.execute(text("ALTER TABLE incidents ADD COLUMN impact VARCHAR(20)"))
+        if "urgency" not in columns:
+            connection.execute(text("ALTER TABLE incidents ADD COLUMN urgency VARCHAR(20)"))
 
 
 def seed_data() -> None:

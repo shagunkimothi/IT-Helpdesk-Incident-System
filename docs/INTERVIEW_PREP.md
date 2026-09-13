@@ -10,15 +10,14 @@ requests and track them from creation through closure. The frontend is a
 Streamlit dashboard that communicates with a FastAPI REST API. FastAPI uses
 Pydantic schemas for validation, a service layer for lifecycle and SLA rules,
 and SQLAlchemy with SQLite for persistence. The database stores users,
-categories, incidents, comments, and incident events. An incident has a
-validated priority, optional assignee, lifecycle status, timestamps, and a
-stored SLA deadline. Critical incidents have a one-hour SLA, High four hours,
+categories, incidents, comments, and incident events. An incident has validated impact and urgency, a
+backend-calculated priority, an optional assignee, lifecycle status,
+timestamps, and a stored SLA deadline. Critical incidents have a one-hour SLA, High four hours,
 Medium eight hours, and Low twenty-four hours. Active incidents are reported
 as overdue when the current time passes the deadline; resolved incidents are
 evaluated using their resolution time. I also wrote pytest tests for the SLA
-rules and an API flow. Authentication, impact/urgency priority calculation,
-and production concurrency controls are future improvements, not current
-features.
+rules and an API flow. Authentication and production concurrency controls are
+future improvements, not current features.
 
 ## 2. 2-Minute Project Explanation
 
@@ -46,8 +45,10 @@ The service layer validates foreign-key references, requires an agent or admin
 as assignee, enforces lifecycle transitions, calculates SLA deadlines, and
 determines overdue status.
 
-Priority is currently selected directly from a validated enum; impact and
-urgency are not implemented. SLA calculation adds one, four, eight, or
+Priority is calculated on the backend from validated impact and urgency values.
+High impact plus high urgency produces Critical. High impact or urgency
+produces High; otherwise medium values produce Medium and low plus low
+produces Low. SLA calculation adds one, four, eight, or
 twenty-four hours to the creation time. A resolved incident is evaluated using
 `resolved_at`, so resolving before the deadline remains successful even when
 the record is viewed later.
@@ -353,10 +354,10 @@ and displays a connection or request error in the dashboard.
 
 **Question:** How does Impact + Urgency produce Priority?
 
-**Answer:** That formula is not implemented. The current system has no impact
-or urgency fields. Priority is directly selected and validated as one of four
-enum values. A future matrix could map combinations to priority, but it should
-not be claimed as current behavior.
+**Answer:** The backend calculates it. High impact plus high urgency produces
+Critical. High impact or high urgency produces High. If neither is high, a
+medium impact or urgency produces Medium; low plus low produces Low. The
+Streamlit UI shows the calculated value but does not submit priority.
 
 ### SLA calculation
 
@@ -572,8 +573,8 @@ transactions, and avoids coupling route code to raw SQL.
 
 ### Is priority calculated instead of manually selected?
 
-No. This is a trap question. Priority is manually selected from a validated
-enum. There is no impact/urgency matrix yet.
+Yes. The UI submits impact and urgency, and the backend calculates priority.
+The API's calculation is the source of truth.
 
 ### Why store the SLA deadline?
 
@@ -702,7 +703,8 @@ A: The incident must have an assignee.
 A: Status, `updated_at`, relevant resolution/closure timestamp, and an event.
 
 **Q: Is impact/urgency implemented?**  
-A: No; priority is directly selected and validated.
+A: Yes. Both are required on new incidents, and backend logic calculates the
+priority for all nine combinations.
 
 **Q: Is authentication implemented?**  
 A: No; stored roles are not authorization.
@@ -735,4 +737,4 @@ and a load balancer.
 - Which API methods and status codes are implemented.
 - Which tests are automated and which scenarios are manual.
 - Which security and scaling features are future improvements.
-- That impact/urgency priority calculation is not implemented.
+- The nine impact/urgency combinations and their calculated priorities.

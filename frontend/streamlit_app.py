@@ -45,6 +45,8 @@ st.dataframe(
             "ID": i["id"],
             "Title": i["title"],
             "Status": i["status"],
+            "Impact": i["impact"] or "Legacy",
+            "Urgency": i["urgency"] or "Legacy",
             "Priority": i["priority"],
             "SLA due": format_sla_due(i["sla_due_at"]),
             "Overdue": i["sla_status"],
@@ -59,9 +61,24 @@ with st.expander("Create incident"):
     with st.form("create_incident"):
         title = st.text_input("Title")
         description = st.text_area("Description")
-        priority = st.selectbox("Priority", ["low", "medium", "high", "critical"], index=1)
-        requester = st.selectbox("Requester", users, format_func=lambda u: u["name"])
         category = st.selectbox("Category", categories, format_func=lambda c: c["name"])
+        impact = st.selectbox(
+            "Impact", ["low", "medium", "high"], index=1, format_func=str.title
+        )
+        urgency = st.selectbox(
+            "Urgency", ["low", "medium", "high"], index=1, format_func=str.title
+        )
+        calculated_priority = (
+            "critical"
+            if impact == "high" and urgency == "high"
+            else "high"
+            if impact == "high" or urgency == "high"
+            else "medium"
+            if impact == "medium" or urgency == "medium"
+            else "low"
+        )
+        st.info(f"Calculated priority: {calculated_priority.title()}")
+        requester = st.selectbox("Requester", users, format_func=lambda u: u["name"])
         assignee_options = [None] + [u for u in users if u["role"] in ("agent", "admin")]
         assignee = st.selectbox(
             "Assignee (optional)",
@@ -76,7 +93,8 @@ with st.expander("Create incident"):
                     json={
                         "title": title,
                         "description": description,
-                        "priority": priority,
+                        "impact": impact,
+                        "urgency": urgency,
                         "requester_id": requester["id"],
                         "category_id": category["id"],
                         "assignee_id": assignee["id"] if assignee else None,

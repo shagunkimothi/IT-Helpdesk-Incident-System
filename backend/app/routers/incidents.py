@@ -15,6 +15,7 @@ from ..schemas import (
 )
 from ..services import (
     calculate_sla_due_at,
+    calculate_priority,
     change_status,
     get_or_404,
     is_overdue,
@@ -45,7 +46,10 @@ def create_incident(payload: IncidentCreate, db: Session = Depends(get_db)):
         **payload.model_dump(),
         created_at=created_at,
         updated_at=created_at,
-        sla_due_at=calculate_sla_due_at(created_at, payload.priority.value),
+        priority=calculate_priority(payload.impact.value, payload.urgency.value),
+        sla_due_at=calculate_sla_due_at(
+            created_at, calculate_priority(payload.impact.value, payload.urgency.value)
+        ),
     )
     db.add(incident)
     db.flush()
@@ -53,7 +57,7 @@ def create_incident(payload: IncidentCreate, db: Session = Depends(get_db)):
         IncidentEvent(
             incident_id=incident.id,
             event_type="created",
-            description=f"Incident created with {incident.priority.value} priority",
+            description=f"Incident created with {incident.priority} priority",
         )
     )
     db.commit()
@@ -103,8 +107,14 @@ def update_incident(incident_id: int, payload: IncidentUpdate, db: Session = Dep
             values.get("category_id", incident.category_id),
             values.get("assignee_id", incident.assignee_id),
         )
-    if "priority" in values:
-        values["priority"] = values["priority"].value
+    if "impact" in values or "urgency" in values:
+        impact = values.get("impact", incident.impact) or "low"
+        urgency = values.get("urgency", incident.urgency) or "low"
+        impact = impact.value if hasattr(impact, "value") else impact
+        urgency = urgency.value if hasattr(urgency, "value") else urgency
+        values["impact"] = impact
+        values["urgency"] = urgency
+        values["priority"] = calculate_priority(impact, urgency)
         incident.sla_due_at = calculate_sla_due_at(incident.created_at, values["priority"])
     for key, value in values.items():
         setattr(incident, key, value)

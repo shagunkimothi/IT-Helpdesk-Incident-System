@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from .models import Category, Incident, User, utc_now
 
 SLA_HOURS = {"critical": 1, "high": 4, "medium": 8, "low": 24}
+IMPACT_URGENCY_LEVELS = {"low": 1, "medium": 2, "high": 3}
 VALID_TRANSITIONS = {
     "open": {"in_progress"},
     "in_progress": {"open", "resolved"},
@@ -16,6 +17,20 @@ VALID_TRANSITIONS = {
 
 def calculate_sla_due_at(created_at: datetime, priority: str) -> datetime:
     return created_at + timedelta(hours=SLA_HOURS[priority])
+
+
+def calculate_priority(impact: str, urgency: str) -> str:
+    impact = impact.lower()
+    urgency = urgency.lower()
+    impact_level = IMPACT_URGENCY_LEVELS[impact]
+    urgency_level = IMPACT_URGENCY_LEVELS[urgency]
+    if impact == "high" and urgency == "high":
+        return "critical"
+    if max(impact_level, urgency_level) == IMPACT_URGENCY_LEVELS["high"]:
+        return "high"
+    if max(impact_level, urgency_level) == IMPACT_URGENCY_LEVELS["medium"]:
+        return "medium"
+    return "low"
 
 
 def is_overdue(incident: Incident, now: datetime | None = None) -> bool:

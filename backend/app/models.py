@@ -49,6 +49,8 @@ class Incident(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="open")
     priority: Mapped[str] = mapped_column(String(20), nullable=False, default="medium")
+    impact: Mapped[str | None] = mapped_column(String(20))
+    urgency: Mapped[str | None] = mapped_column(String(20))
     requester_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     assignee_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"), nullable=False)

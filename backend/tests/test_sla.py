@@ -1,7 +1,23 @@
 from datetime import datetime
 
 from app.models import Incident
-from app.services import calculate_sla_due_at, is_overdue
+from app.services import calculate_priority, calculate_sla_due_at, is_overdue
+
+
+def test_priority_for_all_impact_urgency_combinations():
+    expected = {
+        ("high", "high"): "critical",
+        ("high", "medium"): "high",
+        ("high", "low"): "high",
+        ("medium", "high"): "high",
+        ("medium", "medium"): "medium",
+        ("medium", "low"): "medium",
+        ("low", "high"): "high",
+        ("low", "medium"): "medium",
+        ("low", "low"): "low",
+    }
+    for inputs, priority in expected.items():
+        assert calculate_priority(*inputs) == priority
 
 
 def test_sla_duration_for_each_priority():

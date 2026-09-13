@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from fastapi.testclient import TestClient
 
 from app.database import engine
@@ -18,7 +20,8 @@ def test_create_and_validate_incident():
             json={
                 "title": "VPN unavailable",
                 "description": "Remote access is failing.",
-                "priority": "high",
+                "impact": "high",
+                "urgency": "medium",
                 "requester_id": 3,
                 "category_id": 3,
                 "assignee_id": 1,
@@ -27,6 +30,7 @@ def test_create_and_validate_incident():
         assert response.status_code == 201
         incident = response.json()
         assert incident["status"] == "open"
+        assert incident["priority"] == "high"
         assert incident["is_overdue"] is False
         assert incident["sla_status"] == "Not overdue"
         with engine.connect() as connection:
@@ -43,3 +47,36 @@ def test_create_and_validate_incident():
             json={"status": "closed"},
         )
         assert invalid.status_code == 400
+
+
+def test_updating_impact_and_urgency_recalculates_sla():
+    with TestClient(app) as client:
+        response = client.post(
+            "/incidents",
+            json={
+                "title": "Priority recalculation",
+                "description": "Check calculated priority and SLA.",
+                "impact": "low",
+                "urgency": "low",
+                "requester_id": 3,
+                "category_id": 3,
+                "assignee_id": 1,
+            },
+        )
+        assert response.status_code == 201
+        incident = response.json()
+        assert incident["priority"] == "low"
+        assert incident["sla_due_at"].startswith("2026-")
+
+        response = client.put(
+            f"/incidents/{incident['id']}",
+            json={"impact": "high", "urgency": "high"},
+        )
+        assert response.status_code == 200
+        updated = response.json()
+        assert updated["priority"] == "critical"
+        assert updated["impact"] == "high"
+        assert updated["urgency"] == "high"
+        assert datetime.fromisoformat(updated["sla_due_at"]) == (
+            datetime.fromisoformat(incident["created_at"]) + timedelta(hours=1)
+        )

@@ -17,6 +17,12 @@ class Priority(str, Enum):
     critical = "critical"
 
 
+class ImpactUrgency(str, Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+
+
 class IncidentStatus(str, Enum):
     open = "open"
     in_progress = "in_progress"
@@ -57,7 +63,8 @@ class CategoryRead(CategoryCreate):
 class IncidentCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(min_length=1)
-    priority: Priority = Priority.medium
+    impact: ImpactUrgency
+    urgency: ImpactUrgency
     requester_id: int = Field(gt=0)
     category_id: int = Field(gt=0)
     assignee_id: int | None = Field(default=None, gt=0)
@@ -66,7 +73,8 @@ class IncidentCreate(BaseModel):
 class IncidentUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, min_length=1)
-    priority: Priority | None = None
+    impact: ImpactUrgency | None = None
+    urgency: ImpactUrgency | None = None
     category_id: int | None = Field(default=None, gt=0)
     assignee_id: int | None = Field(default=None, gt=0)
 
@@ -83,6 +91,8 @@ class IncidentRead(BaseModel):
     description: str
     status: IncidentStatus
     priority: Priority
+    impact: ImpactUrgency | None
+    urgency: ImpactUrgency | None
     requester_id: int
     assignee_id: int | None
     category_id: int
